@@ -22,6 +22,8 @@ const db = require('../config/db');
 // Returns permanent https URL of uploaded photo
 const { uploadToCloudinary } = require('../middleware/upload.middleware');
 
+const clean = (val) => (val === "" ? null : val); // for data cleaning before insert into
+
 // ============================================================
 // CONTROLLER 1 : uploadDocument
 // Called when user submits document form with photos
@@ -374,40 +376,62 @@ const saveDocumentDetails = async (documentId, docTypeCode, data) => {
       // Table : kyc_staff_details
       // Fields : all 20+ staff fields
       // -------------------------------------------------------
+      console.log("KYCS DATA RECEIVED:", data);
+            // Check PAN exists
+      const panCheck = await db.query(
+        "SELECT * FROM pan_master WHERE pan_no = $1",
+        [data.pan_no]
+      );
+
+      if (panCheck.rows.length === 0) {
+        await db.query(
+          "INSERT INTO pan_master (pan_no, name) VALUES ($1, $2)",
+          [data.pan_no, data.full_name || "Unknown"]
+        );
+      }
       await db.query(
         `INSERT INTO kyc_staff_details
-         (document_id, full_name, nick_name, mobile_no,
+         (document_id, full_name, nick_name, staff_mobile,
           email, pan_no, aadhar_no, aadhar_mobile_linked,
           bank_account_no, bank_ifsc, bank_name, bank_branch,
-          upi_no, driving_license_no, license_expiry_date,
-          driving_license_type, emergency_contact_no,
-          full_address, state_id, city_id, pincode, remarks)
+          upi_id, driving_license_no, license_expiry_date,
+          license_types, mobile,
+          full_address, state, city, pincode, remarks)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
                  $11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22)`,
-        [
-          documentId,
-          data.full_name || null,
-          data.nick_name || null,
-          data.mobile_no || null,
-          data.email || null,
-          data.pan_no || null,
-          data.aadhar_no || null,
-          data.aadhar_mobile_linked || false,
-          data.bank_account_no || null,
-          data.bank_ifsc || null,
-          data.bank_name || null,
-          data.bank_branch || null,
-          data.upi_no || null,
-          data.driving_license_no || null,
-          data.license_expiry_date || null,
-          data.driving_license_type || null,
-          data.emergency_contact_no || null,
-          data.full_address || null,
-          data.state_id || null,
-          data.city_id || null,
-          data.pincode || null,
-          data.remarks || null
-        ]
+          [
+        documentId,                      // $1
+
+        data.full_name || null,          // $2
+        data.nick_name || null,          // $3
+
+        data.mobile || null,             // $4 → staff_mobile ✅
+        data.email || null,              // $5
+
+        data.pan_no || null,             // $6
+        data.aadhar_no || null,          // $7
+        data.aadhar_mobile_linked || false, // $8
+
+        data.bank_account_no || null,    // $9
+        data.bank_ifsc || null,          // $10
+
+        data.bank_name || null,          // $11
+        data.bank_branch || null,        // $12
+
+        data.upi_id || null,             // $13
+
+        data.driving_license_no || null, // $14
+        data.license_expiry_date || null,// $15
+        data.license_types || null,      // $16
+
+        data.mobile || null,             // $17 → mobile_no ✅ CRITICAL
+
+        data.full_address || null,       // $18
+        data.state || null,              // $19
+        data.city || null,               // $20
+        data.pincode || null,            // $21
+        data.remarks || null             // $22
+      ]
       );
       break;
 
@@ -417,33 +441,47 @@ const saveDocumentDetails = async (documentId, docTypeCode, data) => {
       // Table : kyc_vendor_details
       // Fields : all vendor fields
       // -------------------------------------------------------
-      await db.query(
-        `INSERT INTO kyc_vendor_details
-         (document_id, vendor_type, business_name,
-          authorized_person, vendor_mobile, email,
-          pan_no, aadhar_no, gst_no, bank_account_no,
-          bank_ifsc, bank_name, bank_branch,
-          introducer_name, remarks)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,
-                 $11,$12,$13,$14,$15)`,
-        [
-          documentId,
-          data.vendor_type || null,
-          data.business_name || null,
-          data.authorized_person || null,
-          data.vendor_mobile || null,
-          data.email || null,
-          data.pan_no || null,
-          data.aadhar_no || null,
-          data.gst_no || null,
-          data.bank_account_no || null,
-          data.bank_ifsc || null,
-          data.bank_name || null,
-          data.bank_branch || null,
-          data.introducer_name || null,
-          data.remarks || null
-        ]
+     console.log("KYCV DATA RECEIVED:", data);
+            // Check PAN exists
+      const panCheckVendor = await db.query(
+        "SELECT * FROM pan_master WHERE pan_no = $1",
+        [data.pan_no]
       );
+
+      if (panCheckVendor.rows.length === 0) {
+        await db.query(
+          "INSERT INTO pan_master (pan_no, name) VALUES ($1, $2)",
+          [data.pan_no, data.business_name || "Vendor"]
+        );
+      }
+
+
+      await db.query(
+      `INSERT INTO kyc_vendor_details
+      (document_id, vendor_type, business_name, authorized_person,
+        vendor_mobile, email, introducer_name,
+        pan_no, aadhar_no, gst_no,
+        bank_account_no, bank_ifsc, bank_name, bank_branch,
+        remarks)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
+      [
+        documentId,
+        data.vendor_type || null,
+        data.business_name || null,
+        data.authorized_person || null,
+        clean(data.vendor_mobile),   // ✅
+        data.email || null,
+        data.introducer_name || null,
+        data.pan_no || null,
+        clean(data.aadhar_no),       // ✅
+        data.gst_no || null,
+        clean(data.bank_account_no), // ✅
+        data.bank_ifsc || null,
+        data.bank_name || null,
+        data.bank_branch || null,
+        data.remarks || null
+      ]
+    );
       break;
 
     default:
