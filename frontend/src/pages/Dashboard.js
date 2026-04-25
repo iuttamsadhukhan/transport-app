@@ -1,88 +1,99 @@
-import { useEffect, useState } from "react"; 
-// useState → to store user data
-// useEffect → to run code when page loads
-
-import API from "../api/api"; 
-// Import our axios instance (already configured with baseURL + token)
+import { useEffect, useState } from "react";
+import API from "../api/api";
 
 export default function Dashboard() {
 
-  const [user, setUser] = useState(null); 
-  // user → will store logged-in user data from backend
-  // initially null because data not loaded yet
+  // =========================
+  // 📦 STATE (ONLY ONCE)
+  // =========================
+  const [documents, setDocuments] = useState([]);
+  const [user, setUser] = useState(null);
 
+  // =========================
+  // 📥 FETCH DOCUMENTS
+  // =========================
+  const fetchDocuments = async () => {
+    try {
+      const res = await API.get("/documents");
+      setDocuments(res.data);
+    } catch (err) {
+      console.log(err);
+    }
+  };
+
+  // =========================
+  // 👤 FETCH USER + DOCUMENTS
+  // =========================
   useEffect(() => {
 
-    const token = localStorage.getItem("token"); 
-    // Get JWT token from browser storage
+    const token = localStorage.getItem("token");
 
     if (!token) {
-      // If token not found → user is not logged in
-
-      window.location.href = "/"; 
-      // Redirect user to login page
-
-      return; 
-      // VERY IMPORTANT → stops further execution
+      window.location.href = "/";
+      return;
     }
 
     const fetchUser = async () => {
-      // Function to fetch user details from backend
-
       try {
-        const res = await API.get("/auth/me"); 
-        // Call protected API → backend verifies token and returns user
-        console.log(res.data); // 👈 ADD THIS
-        setUser(res.data.user); 
-        // Save user data into state → UI will update automatically
-
+        const res = await API.get("/auth/me");
+        setUser(res.data.user);
       } catch (err) {
-        // If error occurs (invalid token / expired)
-
-        alert("Session expired. Please login again."); 
-        // Inform user
-
-        localStorage.removeItem("token"); 
-        // Remove invalid/expired token
-
-        window.location.href = "/"; 
-        // Redirect to login page
+        alert("Session expired. Please login again.");
+        localStorage.removeItem("token");
+        window.location.href = "/";
       }
     };
 
-    fetchUser(); 
-    // Call the function to load user data
+    fetchUser();        // get user
+    fetchDocuments();   // get documents
 
-  }, []); 
-  // Empty dependency array → runs only once when page loads
+  }, []);
 
+  // =========================
+  // 🎨 UI
+  // =========================
   return (
     <div style={{ padding: 20 }}>
       <h2>Dashboard</h2>
 
       {user ? (
-        // If user data is loaded
-
         <div>
-          <p><b>Name:</b> {user.name}</p> 
-          {/* Display user name */}
+          <p><b>Name:</b> {user.name}</p>
+          <p><b>Mobile:</b> {user.mobile}</p>
+          <p><b>Group ID:</b> {user.groupId}</p>
 
-          <p><b>Mobile:</b> {user.mobile}</p> 
-          {/* Display mobile number */}
-
-          <p><b>Group ID:</b> {user.groupId}</p> 
-          {/* Display group ID */}
           <br />
 
-            {/* Upload Button */}
           <button onClick={() => window.location.href = "/upload"}>
-             Upload Document
+            Upload Document
           </button>
+
+          {/* =========================
+              📄 DOCUMENT LIST
+          ========================= */}
+          <h3>Uploaded Documents</h3>
+
+          {documents.length === 0 ? (
+            <p>No documents found</p>
+          ) : (
+            documents.map((doc) => (
+              <div
+                key={doc.id}
+                style={{
+                  border: "1px solid #ccc",
+                  padding: "10px",
+                  margin: "10px 0",
+                }}
+              >
+                <p><b>ID:</b> {doc.id}</p>
+                <p><b>Type:</b> {doc.doc_type_id}</p>
+                <p><b>Date:</b> {doc.created_at}</p>
+              </div>
+            ))
+          )}
+
         </div>
-
       ) : (
-        // While data is loading
-
         <p>Loading...</p>
       )}
     </div>

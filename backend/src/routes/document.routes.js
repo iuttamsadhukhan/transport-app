@@ -17,7 +17,7 @@
 // Keeps document routes separate from auth and admin routes
 const express = require('express');
 const router = express.Router();
-
+const db = require("../config/db");   // This file usually does NOT have db imported
 // protect is our JWT authentication middleware
 // It checks if user is logged in before allowing access
 // How it works :
@@ -91,7 +91,26 @@ router.get('/my',
   // Return all documents for this logged in user
   getMyDocuments
 );
+//
+// =========================
+// 📥 GET ALL DOCUMENTS
+// =========================
+router.get("/", async (req, res) => {
+  try {
 
+    const result = await db.query(
+      "SELECT * FROM documents ORDER BY id DESC"
+    );
+
+    res.json(result.rows);
+
+  } catch (err) {
+    console.error("Fetch documents error:", err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+//
 // ============================================================
 // EXPORT the router
 // app.js imports this and mounts it at /api/documents/

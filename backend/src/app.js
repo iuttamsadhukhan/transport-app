@@ -43,6 +43,10 @@ const helmet = require('helmet');
 // app is our server — we attach routes and middleware to it
 const app = express();
 
+//
+const documentRoutes = require("./routes/document.routes");
+//
+
 // ============================================================
 // MIDDLEWARE SECTION
 // Middleware = functions that run on EVERY request before
